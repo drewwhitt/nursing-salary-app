@@ -4,6 +4,9 @@ import pandas as pd
 from calculate_stats import get_city_stats, get_overall_stats
 import plotly.graph_objects as go
 import plotly.express as px
+import os
+from dotenv import load_dotenv
+from supabase import create_client
 
 st.set_page_config(
     page_title="Nursing Job Salary Analytics",
@@ -62,7 +65,7 @@ for city, stats in sorted_cities:
         job_counts.append(stats['job_count'])
 
 # Create tabs for different views
-tab1, tab2, tab3 = st.tabs(["Salary Comparison", "Job Distribution", "City Details"])
+tab1, tab2, tab3, tab4 = st.tabs(["Salary Comparison", "Job Distribution", "City Details", "Employment Types"])
 
 with tab1:
     st.subheader("Median & Mean Hourly Rate by City")
@@ -139,6 +142,50 @@ with tab3:
         file_name="nursing_salary_stats.csv",
         mime="text/csv"
     )
+
+with tab4:
+    st.subheader("Job Distribution by Employment Type")
+
+    # Initialize Supabase connection
+    load_dotenv()
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_API_KEY')
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    try:
+        response = supabase.table('jobs').select('employment_type').execute()
+        jobs_data = response.data
+
+        # Count employment types
+        emp_types = {}
+        for job in jobs_data:
+            emp_type = job.get('employment_type', 'Not specified')
+            if not emp_type or str(emp_type).strip() == '':
+                emp_type = 'Not specified'
+            emp_types[emp_type] = emp_types.get(emp_type, 0) + 1
+
+        if emp_types:
+            emp_df = pd.DataFrame([
+                {'Employment Type': k, 'Count': v}
+                for k, v in sorted(emp_types.items(), key=lambda x: x[1], reverse=True)
+            ])
+
+            fig = px.bar(
+                emp_df,
+                x='Employment Type',
+                y='Count',
+                title="Job Count by Employment Type",
+                color='Count',
+                color_continuous_scale='Viridis'
+            )
+            fig.update_layout(height=400, hovermode='x')
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.dataframe(emp_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No employment type data available")
+    except Exception as e:
+        st.error(f"Error loading employment types: {e}")
 
 st.divider()
 
