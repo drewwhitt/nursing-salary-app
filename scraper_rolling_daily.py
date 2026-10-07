@@ -100,6 +100,16 @@ def is_registered_nurse(title):
         'healthcare assistant',
         'home health aide',
         'hha',
+        'nurse practitioner',
+        'fnp',
+        'np',
+        'physician',
+        'doctor',
+        'md',
+        'physician assistant',
+        'pa',
+        'dentist',
+        'pharmacist',
     ]
 
     # If it contains any exclude keywords, it's not an RN
