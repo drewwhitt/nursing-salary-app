@@ -50,7 +50,7 @@ def should_delete_job(title, min_sal, max_sal):
     return False, None
 
 print("Fetching jobs from database...")
-response = supabase.table('jobs').select('id, title, salary_min_hourly, salary_max_hourly').execute()
+response = supabase.table('jobs').select('job_id, title, salary_min_hourly, salary_max_hourly').execute()
 jobs = response.data
 
 if not jobs:
@@ -69,7 +69,7 @@ for job in jobs:
     )
     if should_delete:
         to_delete.append({
-            'id': job['id'],
+            'id': job['job_id'],
             'title': job.get('title'),
             'reason': reason
         })
@@ -80,7 +80,7 @@ if to_delete:
     print("\nDeleting invalid jobs:")
     for job in to_delete:
         print(f"  - {job['title']}: {job['reason']}")
-        supabase.table('jobs').delete().eq('id', job['id']).execute()
+        supabase.table('jobs').delete().eq('job_id', job['id']).execute()
 
     print(f"\n✓ Deleted {len(to_delete)} invalid jobs")
 else:
