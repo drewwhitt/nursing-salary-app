@@ -7,6 +7,7 @@ Cleanup script to remove invalid jobs from the database:
 """
 
 import os
+import re
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -15,7 +16,7 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_API_KEY')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Keywords that are NOT registered nurse positions
+# Keywords that are NOT registered nurse positions (multi-word phrases are safe from word boundary issues)
 EXCLUDE_KEYWORDS = [
     'nurse practitioner', 'fnp', 'np',
     'physician', 'doctor', 'md',
@@ -33,12 +34,21 @@ EXCLUDE_KEYWORDS = [
 def should_delete_job(title, min_sal, max_sal):
     """Determine if a job should be deleted"""
 
-    # Check for non-RN titles
+    # Check for non-RN titles using word boundary matching
     if title:
         title_lower = str(title).lower()
         for exclude in EXCLUDE_KEYWORDS:
-            if exclude in title_lower:
-                return True, f"Non-RN role: {exclude}"
+            # Use word boundary regex for short keywords (2-3 chars) to avoid false positives
+            # For longer phrases, simple substring matching is safe
+            if len(exclude) <= 3:
+                # Word boundary matching: \b ensures we match whole words only
+                pattern = r'\b' + re.escape(exclude) + r'\b'
+                if re.search(pattern, title_lower):
+                    return True, f"Non-RN role: {exclude}"
+            else:
+                # For longer phrases like "nurse practitioner", substring is fine
+                if exclude in title_lower:
+                    return True, f"Non-RN role: {exclude}"
 
     # Check for salary outliers
     if min_sal and max_sal:

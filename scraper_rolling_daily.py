@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, time, random, logging, uuid
+import os, time, random, logging, uuid, re
 from datetime import datetime
 from dotenv import load_dotenv
 import jobspy
@@ -113,9 +113,17 @@ def is_registered_nurse(title):
     ]
 
     # If it contains any exclude keywords, it's not an RN
+    # Use word boundary matching for short keywords to avoid false positives
     for exclude in exclude_keywords:
-        if exclude in title_lower:
-            return False
+        if len(exclude) <= 3:
+            # Word boundary matching: \b ensures we match whole words only
+            pattern = r'\b' + re.escape(exclude) + r'\b'
+            if re.search(pattern, title_lower):
+                return False
+        else:
+            # For longer phrases, substring matching is safe
+            if exclude in title_lower:
+                return False
 
     # If it contains any RN keywords, it is an RN
     for keyword in rn_keywords:
