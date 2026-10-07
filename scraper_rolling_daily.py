@@ -159,7 +159,7 @@ def scrape_city(city, state):
             search_term='nurse OR RN OR "registered nurse"',
             location=f'{city}, {state}',
             results_wanted=75,
-            hours_old=168,
+            hours_old=720,
             country_indeed='USA'
         )
         logger.info(f'  JobSpy returned successfully')
@@ -179,7 +179,7 @@ def scrape_city(city, state):
                 search_term='nurse OR RN OR "registered nurse"',
                 location=f'{city}, {state}',
                 results_wanted=75,
-                hours_old=168,
+                hours_old=720,
                 country_indeed='USA'
             )
             logger.info(f'  Indeed-only search returned')
@@ -247,6 +247,15 @@ def scrape_city(city, state):
                     if not url:
                         url = f"https://jobspy.com/job/{uuid.uuid4()}"
 
+                    # Get posted_at date from JobSpy if available
+                    posted_at = get_field('date_posted')
+                    if not posted_at:
+                        posted_at = datetime.now().isoformat()
+                    else:
+                        # Ensure it's ISO format string
+                        if not isinstance(posted_at, str):
+                            posted_at = str(posted_at)
+
                     job_dict = {
                         'source': get_field('site', 'jobspy'),
                         'source_job_id': str(job_id)[:100],
@@ -262,7 +271,7 @@ def scrape_city(city, state):
                         'salary_max_hourly': max_h,
                         'salary_period_original': str(interval) if interval else 'hourly',
                         'is_active': True,
-                        'posted_at': datetime.now().isoformat(),
+                        'posted_at': posted_at,
                         'scraped_at': datetime.now().isoformat(),
                         'created_at': datetime.now().isoformat(),
                         'updated_at': datetime.now().isoformat(),

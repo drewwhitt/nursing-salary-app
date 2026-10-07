@@ -1,249 +1,167 @@
 #!/usr/bin/env python3
-"""
-Nursing Platform Streamlit MVP (Demo - No Auth)
-City-based salary, cost of living, tax, and licensing explorer for new-grad nurses.
-"""
-
-import os
-from datetime import datetime
-from typing import Optional, Dict
-
 import streamlit as st
-from streamlit_option_menu import option_menu
-import plotly.graph_objects as go
-import plotly.express as px
-from supabase import create_client, Client
+import pandas as pd
+from datetime import datetime, timedelta
+from calculate_stats import get_city_stats
+import os
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_API_KEY")
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_API_KEY')
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(
-    page_title="Nursing Job & Compensation Explorer",
-    page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Nursing Job Listings",
+    page_icon="💼",
+    layout="wide"
 )
 
-# ============================================================================
-# SUPABASE
-# ============================================================================
+st.title("💼 Nursing Job Listings")
+st.markdown("Browse registered nurse (RN) job postings across major US cities")
 
-@st.cache_resource
-def init_supabase() -> Client:
-    """Initialize Supabase client."""
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
-
-supabase = init_supabase()
-
-# ============================================================================
-# DATA LOADING
-# ============================================================================
-
-@st.cache_data(ttl=3600)
-def load_all_jobs():
-    """Load all active jobs from Supabase."""
-    try:
-        response = supabase.table('jobs').select('*').eq('is_active', True).execute()
-        if response.data:
-            return response.data
-        return []
-    except Exception as e:
-        st.error(f"Error loading jobs: {str(e)}")
-        return []
-
-@st.cache_data(ttl=3600)
-def load_wage_benchmarks():
-    """Load wage benchmarks from Supabase."""
-    try:
-        response = supabase.table('wages_benchmark').select('*').execute()
-        if response.data:
-            return response.data
-        return []
-    except Exception as e:
-        st.warning(f"Error loading wage benchmarks: {str(e)}")
-        return []
-
-# ============================================================================
-# CALCULATIONS
-# ============================================================================
-
-def calculate_federal_tax(gross_income: float, filing_status: str = "single", year: int = 2026) -> float:
-    """Calculate federal income tax (simplified 2026 brackets for single filer)."""
-    # 2026 federal brackets (simplified for single)
-    brackets = [
-        (11000, 0.10),
-        (44725, 0.12),
-        (95375, 0.22),
-    ]
-    standard_deduction = 16100
-
-    taxable = max(0, gross_income - standard_deduction)
-    tax = 0.0
-    prev_limit = 0
-
-    for limit, rate in brackets:
-        if taxable <= prev_limit:
-            break
-        taxable_in_bracket = min(taxable, limit) - prev_limit
-        tax += taxable_in_bracket * rate
-        prev_limit = limit
-
-    # If income exceeds last bracket, add remaining at 24%
-    if taxable > prev_limit:
-        tax += (taxable - prev_limit) * 0.24
-
-    return tax
-
-def calculate_state_tax(gross_income: float, state_rate: float = 0.0, state_deduction: float = 0.0) -> float:
-    """Calculate state income tax based on state tax rate."""
-    taxable = max(0, gross_income - state_deduction)
-    return taxable * state_rate
-
-def calculate_take_home(hourly_rate: float, state_rate: float = 0.0, hours_per_year: int = 2080) -> Dict[str, float]:
-    """Calculate take-home pay from hourly rate."""
-    gross = hourly_rate * hours_per_year
-
-    federal_tax = calculate_federal_tax(gross)
-    state_tax = calculate_state_tax(gross, state_rate)
-
-    # FICA (Social Security 6.2% + Medicare 1.45%)
-    fica = gross * 0.0765
-
-    take_home = gross - federal_tax - state_tax - fica
-
-    return {
-        'gross': gross,
-        'federal_tax': federal_tax,
-        'state_tax': state_tax,
-        'fica': fica,
-        'take_home': take_home,
-        'monthly_take_home': take_home / 12
-    }
-
-# ============================================================================
-# MAIN UI
-# ============================================================================
-
-st.markdown("# 🏥 Nursing Job & Compensation Explorer")
-st.markdown("Find your ideal nursing career by city — salary, cost of living, taxes, and licensing all in one place.")
-st.markdown("---")
-
-# Load data
-jobs = load_all_jobs()
-benchmarks = load_wage_benchmarks()
-
-# Create a mapping of benchmarks
-benchmark_map = {(b.get('city'), b.get('state')): b for b in benchmarks}
-
-if not jobs:
-    st.warning("No jobs loaded yet. Run the scraper first!")
+# Fetch all jobs from database
+try:
+    response = supabase.table('jobs').select('*').order('posted_at', desc=True).execute()
+    jobs_data = response.data
+except Exception as e:
+    st.error(f"Error fetching jobs: {e}")
     st.stop()
 
-# Get unique cities
-cities = sorted(set((j.get('city'), j.get('state')) for j in jobs if j.get('city') and j.get('state')))
+if not jobs_data:
+    st.warning("No job listings available yet. Please run the scraper first.")
+    st.stop()
 
-st.markdown(f"### Found {len(jobs)} nursing jobs in {len(cities)} cities")
+# Convert to DataFrame for easier handling
+df = pd.DataFrame(jobs_data)
+
+# Calculate posting age in days
+df['posted_at'] = pd.to_datetime(df['posted_at'])
+now = datetime.now(df['posted_at'].dt.tz)
+df['days_old'] = (now - df['posted_at']).dt.days
+
+# Filter: only show jobs posted in last 30 days
+df = df[df['days_old'] <= 30].reset_index(drop=True)
+
+if len(df) == 0:
+    st.warning("No jobs posted in the last 30 days.")
+    st.stop()
 
 # Sidebar filters
-st.sidebar.markdown("## 🔍 Filters")
-selected_cities = st.sidebar.multiselect(
-    "Select cities to explore",
-    options=[f"{city}, {state}" for city, state in cities],
-    default=[f"{city}, {state}" for city, state in cities[:3]]
+st.sidebar.header("Filters")
+
+# City filter
+cities = sorted(df['city'].unique().tolist())
+selected_cities = st.sidebar.multiselect("City", cities, default=cities)
+df = df[df['city'].isin(selected_cities)]
+
+# Employment type filter
+employment_types = sorted([et for et in df['employment_type'].unique() if et and et.strip()])
+if employment_types:
+    selected_types = st.sidebar.multiselect("Employment Type", employment_types, default=employment_types)
+    df = df[df['employment_type'].isin(selected_types)]
+
+# Salary range filter
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    min_salary = st.number_input("Min Hourly ($)", value=20, step=5)
+with col2:
+    max_salary = st.number_input("Max Hourly ($)", value=100, step=5)
+
+# Filter by salary range (show jobs where the range overlaps with user's filter)
+df = df[
+    (df['salary_min_hourly'].fillna(0) <= max_salary) &
+    (df['salary_max_hourly'].fillna(200) >= min_salary)
+]
+
+# Sort options
+sort_option = st.sidebar.selectbox(
+    "Sort by",
+    [
+        "Newest First",
+        "Oldest First",
+        "Highest Salary",
+        "Lowest Salary",
+        "City (A-Z)",
+        "Company (A-Z)",
+    ]
 )
 
-if selected_cities:
-    selected_cities_parsed = [tuple(c.split(", ")) for c in selected_cities]
-else:
-    selected_cities_parsed = cities
+if sort_option == "Newest First":
+    df = df.sort_values('posted_at', ascending=False)
+elif sort_option == "Oldest First":
+    df = df.sort_values('posted_at', ascending=True)
+elif sort_option == "Highest Salary":
+    df = df.sort_values('salary_max_hourly', ascending=False, na_position='last')
+elif sort_option == "Lowest Salary":
+    df = df.sort_values('salary_min_hourly', ascending=True, na_position='last')
+elif sort_option == "City (A-Z)":
+    df = df.sort_values('city', ascending=True)
+elif sort_option == "Company (A-Z)":
+    df = df.sort_values('company', ascending=True)
 
-# Display jobs by city
-for city, state in selected_cities_parsed:
-    st.markdown(f"## {city}, {state}")
+# Stats cards
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Total Jobs", len(df))
+with col2:
+    st.metric("Cities", df['city'].nunique())
+with col3:
+    avg_salary = df['salary_min_hourly'].mean()
+    st.metric("Avg Min Salary", f"${avg_salary:.2f}/hr" if pd.notna(avg_salary) else "N/A")
+with col4:
+    max_salary_max = df['salary_max_hourly'].max()
+    st.metric("Top Salary", f"${max_salary_max:.2f}/hr" if pd.notna(max_salary_max) else "N/A")
 
-    # Filter jobs for this city
-    city_jobs = [j for j in jobs if j.get('city') == city and j.get('state') == state]
+st.divider()
 
-    if not city_jobs:
-        st.info("No jobs in this city yet.")
-        continue
+# Job listings display
+st.subheader(f"Job Listings ({len(df)} results)")
 
-    # Get wage benchmark
-    benchmark = benchmark_map.get((city, state), {})
-    bls_hourly = benchmark.get('rn_hourly_median')
+for idx, job in df.iterrows():
+    with st.container(border=True):
+        col1, col2, col3 = st.columns([3, 2, 1])
 
-    if bls_hourly:
-        col1, col2, col3 = st.columns(3)
+        # Job title and company
         with col1:
-            st.metric("BLS Median RN Wage", f"${bls_hourly:.2f}/hr")
+            title = job['title']
+            company = job['company'] if job['company'] else 'Unknown'
+            st.markdown(f"### {title}")
+            st.markdown(f"**{company}** • {job['city']}, {job['state']}")
+
+        # Salary and employment type
         with col2:
-            st.metric("BLS Annual", f"${bls_hourly * 2080:,.0f}")
+            min_sal = job['salary_min_hourly']
+            max_sal = job['salary_max_hourly']
+            if pd.notna(min_sal) and pd.notna(max_sal):
+                st.markdown(f"**${min_sal:.2f} - ${max_sal:.2f}/hr**")
+            elif pd.notna(min_sal):
+                st.markdown(f"**${min_sal:.2f}/hr**")
+            else:
+                st.markdown("**Salary not listed**")
+
+            emp_type = job['employment_type'] if job['employment_type'] else 'Not specified'
+            st.caption(f"📋 {emp_type}")
+
+        # Posted date and link
         with col3:
-            st.metric("Jobs Listed", len(city_jobs))
-    else:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Jobs Listed", len(city_jobs))
-        with col2:
-            st.info("BLS data not available")
+            days = job['days_old']
+            if days == 0:
+                days_text = "Posted today"
+            elif days == 1:
+                days_text = "Posted yesterday"
+            else:
+                days_text = f"Posted {days} days ago"
+            st.caption(days_text)
 
-    st.markdown("---")
+            if job['url']:
+                st.markdown(f"[View Job →]({job['url']})")
 
-    # Display jobs
-    for job in city_jobs[:5]:  # Show top 5 jobs per city
-        with st.container(border=True):
-            col1, col2 = st.columns([3, 1])
+        # Description (expandable)
+        if job['description']:
+            with st.expander("View Description"):
+                st.text(job['description'][:500] + ("..." if len(job['description']) > 500 else ""))
 
-            with col1:
-                st.markdown(f"**{job.get('title', 'Unknown')}**")
-                st.markdown(f"*{job.get('company', 'Unknown Company')}*")
-
-                if job.get('description'):
-                    st.caption(job['description'][:200] + "..." if len(job['description']) > 200 else job['description'])
-
-            with col2:
-                salary_min = job.get('salary_min_hourly')
-                salary_max = job.get('salary_max_hourly')
-                if salary_min and salary_max:
-                    st.markdown(f"**${salary_min:.2f} - ${salary_max:.2f}/hr**")
-                    st.caption(f"Annual: ${salary_min * 2080:,.0f} - ${salary_max * 2080:,.0f}")
-                else:
-                    st.caption("Salary not listed")
-
-            # Expandable details
-            with st.expander("Details & Salary Calculation"):
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    st.write("**Job Info**")
-                    st.caption(f"Specialty: {job.get('specialty', 'N/A')}")
-                    st.caption(f"Shift: {job.get('shift', 'N/A')}")
-                    st.caption(f"Type: {job.get('employment_type', 'N/A')}")
-
-                with col2:
-                    st.write("**Compensation**")
-                    if job.get('sign_on_bonus'):
-                        st.caption(f"Sign-on: ${job['sign_on_bonus']:,}")
-                    if job.get('shift_differential_hourly'):
-                        st.caption(f"Shift Diff: ${job['shift_differential_hourly']:.2f}/hr")
-                    if job.get('residency_program'):
-                        st.caption("✓ Residency Program")
-
-                with col3:
-                    st.write("**Take-Home Calculation**")
-                    if salary_min and salary_max:
-                        avg_hourly = (salary_min + salary_max) / 2
-                        calc = calculate_take_home(avg_hourly, state_rate=0.0)
-                        st.caption(f"Gross (annual): ${calc['gross']:,.0f}")
-                        st.caption(f"Take-home: ${calc['take_home']:,.0f}")
-                        st.caption(f"Monthly: ${calc['monthly_take_home']:,.0f}")
-
-st.markdown("---")
-st.markdown("**Demo Mode** - No authentication required. Data loaded from Supabase sample jobs.")
+st.divider()
+st.caption(f"Data from {len(df)} nursing job postings. Last updated when dashboard was loaded.")
