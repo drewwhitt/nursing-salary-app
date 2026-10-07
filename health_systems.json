@@ -1,0 +1,357 @@
+{
+  "Nashville, TN": [
+    {
+      "system": "Vanderbilt University Medical Center",
+      "ats": "custom",
+      "url": "careers.vanderbilt.edu"
+    },
+    {
+      "system": "HCA Tennessee",
+      "ats": "icims",
+      "url": "hcacareers.com"
+    }
+  ],
+  "Dallas, TX": [
+    {
+      "system": "UT Southwestern Medical Center",
+      "ats": "workday",
+      "url": "jobs.utsouthwestern.edu"
+    },
+    {
+      "system": "Baylor Scott & White Health",
+      "ats": "workday",
+      "url": "bswhealth.com/careers"
+    }
+  ],
+  "Charlotte, NC": [
+    {
+      "system": "Atrium Health",
+      "ats": "custom",
+      "url": "atriumhealth.org/careers"
+    },
+    {
+      "system": "Novant Health",
+      "ats": "icims",
+      "url": "novantcareers.com"
+    }
+  ],
+  "Denver, CO": [
+    {
+      "system": "University of Colorado Hospital",
+      "ats": "workday",
+      "url": "uchealthworks.org"
+    },
+    {
+      "system": "Denver Health",
+      "ats": "custom",
+      "url": "denverhealth.org/careers"
+    }
+  ],
+  "Phoenix, AZ": [
+    {
+      "system": "Phoenix Children's Hospital",
+      "ats": "workday",
+      "url": "phoenixchildrens.org/careers"
+    },
+    {
+      "system": "Banner Health",
+      "ats": "workday",
+      "url": "bannerhealth.com/careers"
+    }
+  ],
+  "Houston, TX": [
+    {
+      "system": "Houston Methodist",
+      "ats": "custom",
+      "url": "houstonmethodist.org/careers"
+    },
+    {
+      "system": "Texas Medical Center",
+      "ats": "aggregated",
+      "url": "tmc.edu"
+    }
+  ],
+  "Atlanta, GA": [
+    {
+      "system": "Emory Healthcare",
+      "ats": "workday",
+      "url": "emoryjobs.com"
+    },
+    {
+      "system": "Grady Health System",
+      "ats": "icims",
+      "url": "grady.org/careers"
+    }
+  ],
+  "Austin, TX": [
+    {
+      "system": "Dell Medical School",
+      "ats": "workday",
+      "url": "dellmedicalschool.org/careers"
+    },
+    {
+      "system": "Ascension Texas",
+      "ats": "icims",
+      "url": "ascension.org/careers"
+    }
+  ],
+  "Indianapolis, IN": [
+    {
+      "system": "Indiana University Health",
+      "ats": "custom",
+      "url": "iuhealth.org/careers"
+    },
+    {
+      "system": "St. Elizabeth Healthcare",
+      "ats": "workday",
+      "url": "stelizabeth.org/careers"
+    }
+  ],
+  "Chicago, IL": [
+    {
+      "system": "Lurie Children's Hospital",
+      "ats": "icims",
+      "url": "luriechildrens.org/careers"
+    },
+    {
+      "system": "Advocate Aurora Health",
+      "ats": "custom",
+      "url": "advocatehealth.org/careers"
+    }
+  ],
+  "Minneapolis, MN": [
+    {
+      "system": "University of Minnesota Health",
+      "ats": "custom",
+      "url": "umnhealth.org/careers"
+    },
+    {
+      "system": "Allina Health",
+      "ats": "workday",
+      "url": "allinahealth.org/careers"
+    }
+  ],
+  "Boston, MA": [
+    {
+      "system": "Massachusetts General Hospital",
+      "ats": "workday",
+      "url": "massgeneralbrigham.org/careers"
+    },
+    {
+      "system": "Boston Medical Center",
+      "ats": "icims",
+      "url": "bmc.org/careers"
+    }
+  ],
+  "New York, NY": [
+    {
+      "system": "NewYork-Presbyterian",
+      "ats": "workday",
+      "url": "nyp.org/careers"
+    },
+    {
+      "system": "Mount Sinai Health System",
+      "ats": "workday",
+      "url": "mountsinai.org/careers"
+    }
+  ],
+  "San Francisco, CA": [
+    {
+      "system": "UCSF Health",
+      "ats": "workday",
+      "url": "careers.ucsf.edu"
+    },
+    {
+      "system": "Stanford Healthcare",
+      "ats": "workday",
+      "url": "careers.stanfordhealthcare.org"
+    }
+  ],
+  "Los Angeles, CA": [
+    {
+      "system": "UCLA Health",
+      "ats": "workday",
+      "url": "careers.uclahealth.org"
+    },
+    {
+      "system": "Cedars-Sinai",
+      "ats": "workday",
+      "url": "cedars-sinai.org/careers"
+    }
+  ],
+  "Seattle, WA": [
+    {
+      "system": "University of Washington Medicine",
+      "ats": "custom",
+      "url": "jobs.washington.edu"
+    },
+    {
+      "system": "Swedish Medical Center",
+      "ats": "workday",
+      "url": "swedish.org/careers"
+    }
+  ],
+  "Portland, OR": [
+    {
+      "system": "Oregon Health & Science University (OHSU)",
+      "ats": "icims",
+      "url": "ohsu.edu/careers"
+    },
+    {
+      "system": "Providence Health & Services",
+      "ats": "workday",
+      "url": "providence.org/careers"
+    }
+  ],
+  "Miami, FL": [
+    {
+      "system": "Jackson Health System",
+      "ats": "workday",
+      "url": "jhsmiami.org/careers"
+    },
+    {
+      "system": "Baptist Health South Florida",
+      "ats": "icims",
+      "url": "baptisthealth.org/careers"
+    }
+  ],
+  "Washington, DC": [
+    {
+      "system": "MedStar Health",
+      "ats": "workday",
+      "url": "medstarcareers.org"
+    },
+    {
+      "system": "Children's National",
+      "ats": "icims",
+      "url": "childrensnational.org/careers"
+    }
+  ],
+  "San Diego, CA": [
+    {
+      "system": "Sharp Healthcare",
+      "ats": "workday",
+      "url": "sharp.com/careers"
+    },
+    {
+      "system": "UC San Diego Health",
+      "ats": "workday",
+      "url": "ucsdhealth.org/careers"
+    }
+  ],
+  "Philadelphia, PA": [
+    {
+      "system": "University of Pennsylvania Health System",
+      "ats": "custom",
+      "url": "uphs.upenn.edu/careers"
+    },
+    {
+      "system": "Thomas Jefferson University Health",
+      "ats": "workday",
+      "url": "jefferson.edu/careers"
+    }
+  ],
+  "Cleveland, OH": [
+    {
+      "system": "Cleveland Clinic",
+      "ats": "workday",
+      "url": "clevelandclinic.org/careers"
+    },
+    {
+      "system": "University Hospitals Cleveland",
+      "ats": "workday",
+      "url": "uhhospitals.org/careers"
+    }
+  ],
+  "Cincinnati, OH": [
+    {
+      "system": "Cincinnati Children's Hospital",
+      "ats": "custom",
+      "url": "cincinnatichildrens.org/careers"
+    },
+    {
+      "system": "UC Health",
+      "ats": "workday",
+      "url": "uchealth.com/careers"
+    }
+  ],
+  "Tampa, FL": [
+    {
+      "system": "Florida Hospital Tampa Bay",
+      "ats": "workday",
+      "url": "floridahospital.com/careers"
+    },
+    {
+      "system": "Moffitt Cancer Center",
+      "ats": "workday",
+      "url": "moffitt.org/careers"
+    }
+  ],
+  "Las Vegas, NV": [
+    {
+      "system": "Valley Health System",
+      "ats": "custom",
+      "url": "valleyhealthsystem.org/careers"
+    },
+    {
+      "system": "Spring Valley Hospital",
+      "ats": "custom",
+      "url": "springvalleyhospital.org"
+    }
+  ],
+  "Salt Lake City, UT": [
+    {
+      "system": "University of Utah Health",
+      "ats": "workday",
+      "url": "jobs.utah.edu"
+    },
+    {
+      "system": "Intermountain Health",
+      "ats": "workday",
+      "url": "intermountainhealthcare.org/careers"
+    }
+  ],
+  "Rochester, MN": [
+    {
+      "system": "Mayo Clinic",
+      "ats": "custom",
+      "url": "mayoclinic.org/careers"
+    }
+  ],
+  "Madison, WI": [
+    {
+      "system": "University of Wisconsin Health",
+      "ats": "workday",
+      "url": "jobs.wisc.edu"
+    },
+    {
+      "system": "SSM Health",
+      "ats": "workday",
+      "url": "ssmhealth.org/careers"
+    }
+  ],
+  "Raleigh, NC": [
+    {
+      "system": "Duke University Health System",
+      "ats": "custom",
+      "url": "jobs.duke.edu"
+    },
+    {
+      "system": "Wake Forest Baptist Health",
+      "ats": "workday",
+      "url": "wfbh.org/careers"
+    }
+  ],
+  "Milwaukee, WI": [
+    {
+      "system": "Froedtert Hospital",
+      "ats": "custom",
+      "url": "froedtert.org/careers"
+    },
+    {
+      "system": "Ascension Wisconsin",
+      "ats": "icims",
+      "url": "ascension.org/careers"
+    }
+  ]
+}
