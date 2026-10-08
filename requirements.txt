@@ -1,5 +1,5 @@
 jobspy==0.31.0
-curl_cffi==0.14.0
+curl_cffi==0.13.0
 beautifulsoup4==4.12.3
 selenium==4.15.2
 polars==0.20.31
