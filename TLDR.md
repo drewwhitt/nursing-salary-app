@@ -11,13 +11,14 @@ Drew wanted to create a data-driven resource to help nurses see real job market 
 ## How Does It Work?
 
 ### Step 1: Scraping (Automatic Daily)
-Every day at 3:45 AM, the app searches LinkedIn and Indeed for nursing job postings in 5 different cities. Over a week, it cycles through 35 major US cities so you get updated data for all of them.
+Every day at 3:45 AM Chicago time, the app searches LinkedIn and Indeed for nursing job postings in 5 different cities. Over a week, it cycles through 35 major US cities so you get updated data for all of them.
 
 ### Step 2: Filtering
-The app is smart about what it includes:
+The app is smart about what it includes (Updated Oct 2026):
 - ✅ Only registered nurse (RN) roles — includes charge nurses, clinical nurses, nurse coordinators, case managers
-- ❌ Excludes non-nursing roles — no CNAs, paramedics, LPNs, medical assistants, or nursing aides
+- ❌ Excludes non-nursing roles — no CNAs, paramedics, LPNs, medical assistants, nursing aides, nurse practitioners, physicians, or physician assistants
 - ❌ Excludes obviously wrong data — if a job listing says $1995/hour (clearly a typo), it gets thrown out
+- 🎯 Smart keyword matching — short keywords like "pa", "np", "md" use word boundary matching to avoid false matches in legitimate titles like "PACU", "Inpatient", "MDS Coordinator"
 
 ### Step 3: Salary Standardization
 Different job postings list salaries differently:
@@ -65,17 +66,19 @@ Tried several options:
 - Company career pages directly — Theoretically best but too complex to implement right now (would need custom scrapers for each healthcare system)
 
 ### 3. How to Handle Bad Data?
-Real-world data is messy. Solutions:
+Real-world data is messy. Solutions (improved Oct 2026):
 - **Unknown titles** → Rejected entirely
 - **Salaries outside reasonable range** ($20-$200/hr) → Rejected (catches typos)
 - **Duplicate listings** → Prevented automatically (each job URL is unique)
-- **Non-RN roles** → Filtered out using keyword matching
+- **Non-RN roles** → Filtered out using smart keyword matching with word boundaries for short keywords
+- **False positives** → Fixed by using regex word boundaries on short keywords (≤3 chars) so legitimate titles aren't accidentally filtered
 
 ### 4. When Should It Update?
-Automatic daily updates at 3:45 AM via Windows Task Scheduler. This way:
+Automatic daily updates at 3:45 AM Chicago time via Windows Task Scheduler. This way:
 - Data stays fresh without Drew manually running it
 - Scraping happens during off-peak hours (fewer network issues)
 - All 35 cities get updated data once per week
+- Task Scheduler configured to run whether user is logged in or not
 
 ## What You Can Do With It Now
 
@@ -83,6 +86,7 @@ Automatic daily updates at 3:45 AM via Windows Task Scheduler. This way:
 2. **Compare cities** — Understand if paying higher pay justifies moving
 3. **Track over time** — As more weeks of data accumulate, see salary trends
 4. **Download data** — Export statistics to Excel for further analysis
+5. **Confidence in data quality** — Know that legitimate RN jobs aren't being filtered out incorrectly
 
 ## What It Can't Do Yet (Future Ideas)
 
@@ -91,33 +95,30 @@ Automatic daily updates at 3:45 AM via Windows Task Scheduler. This way:
 - Doesn't show shift differentials or specialty bonuses (only base salary)
 - Doesn't compare nursing specialties (ICU vs ER vs surgical, etc.)
 - Doesn't predict future salary trends (yet)
+- Doesn't include nursing-specific job boards or government positions yet
 
 ## Files You Actually Care About
 
 **To run the scraper manually:**
-```
 python scraper_rolling_daily.py
-```
+
 
 **To see job listings:**
-```
 streamlit run app_demo.py
-```
+
 
 **To see salary statistics:**
-```
 streamlit run stats_dashboard.py
-```
+
 
 **To check database status:**
-```
 python check_db.py
-```
+
 
 Everything else runs automatically or is background stuff.
 
 ## The Bottom Line
 
-Drew built a daily automated system that pulls real nursing job data, cleans it up, and displays it in two dashboards. It's useful for nurses trying to understand job market salary trends, and for Drew to validate the concept before potentially building it into a bigger business product.
+Drew built a daily automated system that pulls real nursing job data, cleans it up with smart filtering to prevent false positives, and displays it in two dashboards. It's useful for nurses trying to understand job market salary trends, and for Drew to validate the concept before potentially building it into a bigger business product.
 
-**Current status:** Working and running daily. Data quality is good. Ready to expand with more features or other nursing roles (LPNs, CNAs, etc.) if needed.
+**Current status:** Working and running daily on Windows Task Scheduler (3:45 AM Chicago time). Data quality is good with 531 jobs accumulated across 35 cities. Filtering logic improved to prevent legitimate RN titles from being incorrectly removed. Ready to expand with more features or other nursing roles (LPNs, CNAs, etc.) if needed.
