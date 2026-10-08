@@ -21,10 +21,10 @@ response = input("\nType 'DELETE ALL' to confirm: ")
 if response == "DELETE ALL":
     print("\nDeleting all jobs...")
     try:
-        # Delete all records
-        result = supabase.table('jobs').delete().neq('job_id', '').execute()
+        # Delete all records - use is not null filter to match everything
+        result = supabase.table('jobs').delete().is_('job_id', 'not', 'null').execute()
         print(f"✓ Successfully deleted all jobs from database")
-        print("\nNow run: python scraper_rolling_daily.py")
+        print("\nNow run: python3 scraper_rolling_daily.py")
     except Exception as e:
         print(f"✗ Error: {e}")
 else:
