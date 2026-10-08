@@ -4,7 +4,7 @@
 
 Nurse Explorer is a nursing job salary aggregation and analytics platform built by Drew. It scrapes real registered nurse (RN) job listings from LinkedIn and Indeed, normalizes salary data, and provides analytics dashboards to track nursing compensation across 35 major US cities.
 
-**Status:** MVP complete with daily automated scraping, statistics module, and interactive dashboards.
+**Status:** MVP complete with daily automated scraping, statistics module, and interactive dashboards. RN filtering logic improved (Oct 2026) to use word boundary regex matching, preventing false-positive deletions of legitimate roles.
 
 ## Problem Being Solved
 
@@ -52,7 +52,8 @@ Drew wants to build a data-driven resource for registered nurses to understand j
 
 ### 5. Database Tools
 - `check_db.py` — View database status, job counts per city/source
-- `cleanup_old_data.py` — Remove old/invalid data entries
+- `cleanup_bad_jobs.py` — Remove non-RN roles and salary outliers (with corrected word boundary matching)
+- `nuke_database.py` — Nuclear option to delete all jobs and start fresh
 
 ## Database Schema
 
@@ -70,7 +71,8 @@ Drew wants to build a data-driven resource for registered nurses to understand j
 - Only RN roles (registered nurses, charge nurses, clinical nurses, nurse coordinators, case managers, etc.)
 - Salary range: $20-$200/hr (outliers removed)
 - Last 7 days of postings only
-- 59+ jobs currently in database across multiple cities
+- 531 jobs currently in database across 35 cities (as of Oct 8, 2026)
+- Uses word boundary regex matching for short keywords (≤3 chars) to prevent false positives (e.g., "pa" won't match in "PACU", "np" won't match in "Inpatient")
 
 ## Cities Covered (35 total)
 
@@ -85,10 +87,15 @@ Rotating weekly schedule (5 cities per day):
 
 ## Key Design Decisions
 
-### RN Filtering
+### RN Filtering (Updated Oct 2026)
 **Include:** Registered Nurse, RN, Charge Nurse, Clinical Nurse, Nurse Coordinator, Nurse Manager, Case Manager (RN), Nurse Specialist, Nurse Educator, Infection Control Nurse, Occupational Health Nurse
 
-**Exclude:** CNA, Certified Nursing Assistant, Patient Care Technician, PCT, Paramedic, EMT, LPN, LVN, Licensed Practical Nurse, Licensed Vocational Nurse, Phlebotomist, Medical Assistant, MA, Nursing Assistant, Healthcare Assistant, Home Health Aide, HHA
+**Exclude:** CNA, Certified Nursing Assistant, Patient Care Technician, PCT, Paramedic, EMT, LPN, LVN, Licensed Practical Nurse, Licensed Vocational Nurse, Phlebotomist, Medical Assistant, MA, Nursing Assistant, Healthcare Assistant, Home Health Aide, HHA, Nurse Practitioner, FNP, NP, Physician, Doctor, MD, Physician Assistant, PA, Dentist, Pharmacist
+
+**Filtering Logic:**
+- Short keywords (≤3 characters like "pa", "np", "md", "ma") use word boundary regex matching (`\b<keyword>\b`) to match whole words only, preventing false positives in titles like "PACU", "Inpatient", "MDS Coordinator"
+- Longer phrases use substring matching since they're specific enough to avoid false matches
+- Implemented in both `scraper_rolling_daily.py` and `cleanup_bad_jobs.py` for consistency
 
 ### Salary Normalization
 - **Hourly:** Used as-is
@@ -105,20 +112,27 @@ Rotating weekly schedule (5 cities per day):
 
 ## Automation
 
-**Windows Task Scheduler:**
+**Windows Task Scheduler (Configured Oct 2026):**
 - **Time:** 3:45 AM Chicago time (daily)
-- **Command:** `run_scraper_daily.bat` which activates venv and runs `scraper_rolling_daily.py`
-- **Next run:** 3:45 AM Chicago time each day
+- **Program:** `C:\Users\Drewhitt\nursing-salary-app\venv\Scripts\python.exe`
+- **Arguments:** `C:\Users\Drewhitt\nursing-salary-app\scraper_rolling_daily.py`
+- **Run with highest privileges:** ✓ Enabled
+- **Run whether user is logged on or not:** ✓ Enabled
+- **Restart on failure:** Every 10 minutes
+- **Last successful run:** Oct 8, 2026 at 2:27-2:30 PM (scraped 5 cities: Washington DC, Baltimore, Chicago, Detroit, Minneapolis)
 
 ## Important Notes for Future Work
 
-### What's Working Well
+### What's Working Well (Oct 2026 Update)
 - Real job data being scraped (not mock/Unknown titles)
 - Salary normalization working correctly
-- RN filtering catching non-nursing roles effectively
+- RN filtering catching non-nursing roles effectively with word boundary regex matching
+- No false positives on legitimate RN titles (PACU, Inpatient, MDS Coordinator now correctly retained)
 - Database constraint preventing duplicates
 - Stats module producing accurate aggregations
 - Streamlit dashboards responsive and functional
+- Automated scraping running daily on Windows Task Scheduler with corrected filtering logic
+- 531 jobs accumulated from daily rolling scrapes across 35 cities (older data from previous cities retained, will be refreshed as rotation continues)
 
 ### Known Limitations & Future Improvements
 1. **Job Sources** — Currently LinkedIn + Indeed only. Could add:
@@ -164,15 +178,16 @@ nursing-salary-app/
 
 ## Dependencies
 
-Key Python packages:
-- `python-jobspy` (1.2.0) — Job scraping from LinkedIn/Indeed
-- `supabase` — Database client
-- `streamlit` — Frontend dashboards
-- `pandas` — Data manipulation
-- `plotly` — Interactive charts
-- `python-dotenv` — Environment config
+Key Python packages (Oct 2026 versions):
+- `jobspy` (0.31.0) — Job scraping from LinkedIn/Indeed
+- `supabase` (2.4.3) — Database client
+- `streamlit` (1.35.0) — Frontend dashboards
+- `pandas` (2.2.0) — Data manipulation
+- `plotly` (5.19.0) — Interactive charts
+- `python-dotenv` (1.0.0) — Environment config
+- `curl_cffi` (0.13.0) — HTTP library for job scraping
 
-See `requirements.txt` for complete list.
+See `requirements.txt` for complete list with pinned versions.
 
 ## How to Use
 
@@ -201,10 +216,13 @@ streamlit run stats_dashboard.py       # Statistics
 python check_db.py
 ```
 
-### For Production
-- Runs automatically via Windows Task Scheduler at 3:45 AM daily
-- Scrapes 5 cities per day on rotating schedule
+### For Production (Oct 2026 - Currently Running)
+- Runs automatically via Windows Task Scheduler at 3:45 AM Chicago time daily
+- Scrapes 5 cities per day on rotating weekly schedule (35 cities total, 1 rotation per week)
+- Uses corrected RN filtering logic with word boundary regex matching for short keywords
 - Data persists in Supabase, accessible to both dashboards
+- Currently accumulating ~150 jobs per scrape day, growing to cover all 35 cities
+- Database maintains rolling 7-day window of postings with duplicates prevented by URL constraint
 
 ## Contact & Questions
 
