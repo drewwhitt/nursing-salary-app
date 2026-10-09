@@ -1,0 +1,4 @@
+short_name,official_name,state,rpp_all_items_2024,state_income_tax_rate,local_income_tax_rate,rpp_source,tax_source,as_of_date,status
+Chicago,Chicago-Naperville-Elgin IL-IN-WI MSA,IL,103.595,4.95% flat,0%,FRED RPPALL16980 (BEA),https://tax.illinois.gov/research/taxrates/income.html (effective July 1 2017),2026-10-09,Verified
+Nashville,Nashville-Davidson--Murfreesboro--Franklin TN MSA,TN,96.338,0% (no state income tax on earned income),0%,FRED RPPALL34980 (BEA),https://revenue.support.tn.gov/hc/en-us/articles/360057595051-GEN-34-Income-Tax-Withholding,2026-10-09,Verified
+Washington D.C.,Washington-Arlington-Alexandria DC-VA-MD-WV MSA,DC,108.884,Graduated 4.00% to 10.75%; effective rate 5.2% at median pay (tax year 2025),0%,FRED RPPALL47900 (BEA),D.C. Office of Tax and Revenue bracket table (https://otr.cfo.dc.gov/node/232942); standard deduction $15000 from D.C. 2025 D-40 booklet p.4,2026-10-09,Verified

@@ -61,3 +61,4 @@ data/
 selenium_driver/
 downloads/
 temp/
+!reference/city_reference.csv
