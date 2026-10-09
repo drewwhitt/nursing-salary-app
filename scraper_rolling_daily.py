@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env python3
-import os, time, random, logging, uuid
-from datetime import datetime
+import os, time, random, logging, uuid, re
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import jobspy
 from supabase import create_client, Client
@@ -12,6 +12,15 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_API_KEY')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Scrape settings
+RESULTS_PER_SEARCH = 100   # postings requested per city, per board
+HOURS_OLD = 336            # 14 days, matches the posting-age rule
+STALE_AFTER_DAYS = 14      # postings older than this are archived
+
+# Pay basis: nursing standard of 36 hours/week = 1,872 hours/year.
+# Annual and monthly postings are converted with this figure.
+HOURS_PER_YEAR = 1872
 
 CITIES = [
     # Week 1 (5 cities per day = 35 total cities)
@@ -59,6 +68,12 @@ USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
 ]
 
+
+def _contains_term(text, term):
+    """Match a whole word or phrase, so 'ma' does not match 'manager' and 'rn' does not match 'learning'."""
+    return re.search(r'\b' + re.escape(term) + r'\b', text) is not None
+
+
 def is_registered_nurse(title):
     """Filter to keep only Registered Nurse roles (RN, Charge Nurse, etc.)"""
     if not title or title == 'Unknown':
@@ -102,20 +117,21 @@ def is_registered_nurse(title):
         'hha',
     ]
 
-    # If it contains any exclude keywords, it's not an RN
+    # If it contains any exclude keywords as whole words, it's not an RN
     for exclude in exclude_keywords:
-        if exclude in title_lower:
+        if _contains_term(title_lower, exclude):
             return False
 
-    # If it contains any RN keywords, it is an RN
+    # If it contains any RN keywords as whole words, it is an RN
     for keyword in rn_keywords:
-        if keyword in title_lower:
+        if _contains_term(title_lower, keyword):
             return True
 
     return False
 
+
 def normalize_salary(min_amt, max_amt, interval):
-    """Convert salary to hourly rate (using 2080 hours/year standard)"""
+    """Convert salary to hourly rate, using 1,872 hours/year (36 hours/week)."""
     if min_amt is None or max_amt is None:
         return None, None
 
@@ -130,9 +146,9 @@ def normalize_salary(min_amt, max_amt, interval):
     if interval in ('hourly', 'hour'):
         hourly_min, hourly_max = min_amt, max_amt
     elif interval in ('annual', 'yearly', 'year'):
-        hourly_min, hourly_max = min_amt / 2080, max_amt / 2080
+        hourly_min, hourly_max = min_amt / HOURS_PER_YEAR, max_amt / HOURS_PER_YEAR
     elif interval == 'monthly':
-        hourly_min, hourly_max = min_amt * 12 / 2080, max_amt * 12 / 2080
+        hourly_min, hourly_max = min_amt * 12 / HOURS_PER_YEAR, max_amt * 12 / HOURS_PER_YEAR
     else:
         # Default to hourly if interval is unclear
         hourly_min, hourly_max = min_amt, max_amt
@@ -149,6 +165,24 @@ def normalize_salary(min_amt, max_amt, interval):
 
     return hourly_min, hourly_max
 
+
+def archive_stale_jobs():
+    """Mark postings older than STALE_AFTER_DAYS as inactive so the stats and job lists drop them."""
+    cutoff = (datetime.now() - timedelta(days=STALE_AFTER_DAYS)).isoformat()
+    try:
+        result = (
+            supabase.table('jobs')
+            .update({'is_active': False, 'archived_at': datetime.now().isoformat()})
+            .eq('is_active', True)
+            .lt('posted_at', cutoff)
+            .execute()
+        )
+        archived = len(result.data) if result and result.data else 0
+        logger.info(f'Archived {archived} postings older than {STALE_AFTER_DAYS} days')
+    except Exception as e:
+        logger.error(f'Archive step failed: {e}')
+
+
 def scrape_city(city, state):
     logger.info(f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] Scraping {city}, {state}...')
     try:
@@ -158,31 +192,11 @@ def scrape_city(city, state):
             site_name=["linkedin", "indeed"],
             search_term='nurse OR RN OR "registered nurse"',
             location=f'{city}, {state}',
-            results_wanted=75,
-            hours_old=720,
+            results_wanted=RESULTS_PER_SEARCH,
+            hours_old=HOURS_OLD,
             country_indeed='USA'
         )
         logger.info(f'  JobSpy returned successfully')
-
-        # If we got no jobs or all unknowns, try Indeed only
-        if hasattr(jobs, 'height'):
-            initial_count = jobs.height
-        elif hasattr(jobs, '__len__'):
-            initial_count = len(jobs)
-        else:
-            initial_count = 0
-
-        if initial_count == 0:
-            logger.info(f'  No jobs from both sources, trying Indeed only...')
-            jobs = jobspy.scrape_jobs(
-                site_name=["linkedin", "indeed"],
-                search_term='nurse OR RN OR "registered nurse"',
-                location=f'{city}, {state}',
-                results_wanted=75,
-                hours_old=720,
-                country_indeed='USA'
-            )
-            logger.info(f'  Indeed-only search returned')
 
         # Check if jobs were found (handle DataFrame/object types)
         jobs_count = 0
@@ -286,6 +300,7 @@ def scrape_city(city, state):
     except Exception as e:
         logger.error(f'  Error: {e}')
 
+
 # Calculate which 5 cities to scrape today based on day of week
 # With 35 cities and 7 days = 5 cities per day
 today = datetime.now().weekday()  # 0=Monday, 6=Sunday
@@ -302,5 +317,7 @@ logger.info(f'Cities to scrape: {", ".join([f"{c[0]}, {c[1]}" for c in cities_to
 
 for city, state in cities_to_scrape:
     scrape_city(city, state)
+
+archive_stale_jobs()
 
 logger.info('Done.')
