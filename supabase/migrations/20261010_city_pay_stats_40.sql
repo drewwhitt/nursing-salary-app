@@ -1,15 +1,19 @@
--- City pay statistics at 36 hours/week (1,872 hours/year).
--- As of this migration the scraper stores annual and monthly pay already
--- converted at 1,872 hours, so this view uses stored values directly.
+-- City pay statistics at 40 hours/week (2,080 hours/year).
+-- Stored annual and monthly pay is at 1,872 hours, so it is rescaled
+-- by 1,872 / 2,080 to get the 40-hour rate. Hourly postings are unchanged.
 -- Pay per posting = midpoint of posted min and max hourly pay.
 -- Middle 90% = 5th to 95th percentile of pay per posting.
 
-CREATE OR REPLACE VIEW city_pay_stats_36 AS
+CREATE OR REPLACE VIEW city_pay_stats_40 AS
 WITH base AS (
   SELECT
     city,
     state,
-    (salary_min_hourly + salary_max_hourly) / 2 AS pay
+    CASE
+      WHEN salary_period_original IN ('yearly', 'annual', 'year', 'monthly')
+        THEN ((salary_min_hourly + salary_max_hourly) / 2) * 1872 / 2080
+      ELSE (salary_min_hourly + salary_max_hourly) / 2
+    END AS pay
   FROM jobs
   WHERE is_active = true
     AND salary_min_hourly IS NOT NULL
@@ -40,4 +44,4 @@ LEFT JOIN base r
  AND r.pay BETWEEN b.p05 AND b.p95
 GROUP BY b.city, b.state, b.jobs_with_pay, b.p05, b.p95;
 
-GRANT SELECT ON city_pay_stats_36 TO anon;
+GRANT SELECT ON city_pay_stats_40 TO anon;
