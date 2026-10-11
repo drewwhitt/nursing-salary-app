@@ -3,6 +3,7 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from db import fetch_all_rows
 
 load_dotenv()
 
@@ -15,10 +16,10 @@ print("Current Database Status")
 print("=" * 80)
 
 # Get all jobs grouped by source and title quality
-response = supabase.table('jobs').select('job_id, title, company, source, salary_min_hourly, salary_max_hourly').execute()
+jobs = fetch_all_rows(supabase, 'job_id, title, company, source, salary_min_hourly, salary_max_hourly')
 
-if response.data:
-    total = len(response.data)
+if jobs:
+    total = len(jobs)
 
     # Categorize
     unknown_count = sum(1 for job in response.data if job['title'] == 'Unknown')

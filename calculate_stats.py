@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import statistics
+from db import fetch_all_rows
 
 load_dotenv()
 
@@ -21,16 +22,16 @@ def get_city_stats():
     Returns dict with city as key and stats dict as value.
     """
     # Fetch all jobs with salary and city data
-    response = supabase.table('jobs').select(
-        'city, state, salary_min_hourly, salary_max_hourly, title, company'
-    ).execute()
+    jobs = fetch_all_rows(
+        supabase, 'city, state, salary_min_hourly, salary_max_hourly, title, company'
+    )
 
-    if not response.data:
+    if not jobs:
         return {}
 
     # Group jobs by city
     city_data = {}
-    for job in response.data:
+    for job in jobs:
         city = job['city']
         state = job['state']
         city_key = f"{city}, {state}"
@@ -81,15 +82,13 @@ def get_city_stats():
 
 def get_overall_stats():
     """Get overall statistics across all cities."""
-    response = supabase.table('jobs').select(
-        'salary_min_hourly, salary_max_hourly'
-    ).execute()
+    jobs = fetch_all_rows(supabase, 'salary_min_hourly, salary_max_hourly')
 
-    if not response.data:
+    if not jobs:
         return None
 
     salaries = []
-    for job in response.data:
+    for job in jobs:
         if job['salary_min_hourly'] and job['salary_max_hourly']:
             avg_salary = (float(job['salary_min_hourly']) + float(job['salary_max_hourly'])) / 2
             salaries.append(avg_salary)
@@ -98,7 +97,7 @@ def get_overall_stats():
         return None
 
     return {
-        'total_jobs': len(response.data),
+        'total_jobs': len(jobs),
         'jobs_with_salary': len(salaries),
         'mean_hourly': round(statistics.mean(salaries), 2),
         'median_hourly': round(statistics.median(salaries), 2),

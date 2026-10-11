@@ -37,7 +37,6 @@ CITIES = [
     ("Minneapolis", "MN"),
     ("Kansas City", "MO"),
     ("St. Louis", "MO"),
-    ("Nashville", "TN"),  # Will repeat weekly
     ("Memphis", "TN"),
     ("New Orleans", "LA"),
     ("Los Angeles", "CA"),
@@ -59,27 +58,12 @@ USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
 ]
 
-def is_registered_nurse(title):
+def is_registered_nurse(title, description=''):
     """Filter to keep only Registered Nurse roles (RN, Charge Nurse, etc.)"""
     if not title or title == 'Unknown':
         return False
 
     title_lower = str(title).lower()
-
-    # Keywords that indicate this IS a registered nurse role
-    rn_keywords = [
-        'registered nurse',
-        'rn',
-        'charge nurse',
-        'clinical nurse',
-        'nurse coordinator',
-        'nurse manager',
-        'case manager',  # RN case managers
-        'nurse specialist',
-        'nurse educator',
-        'infection control nurse',
-        'occupational health nurse',
-    ]
 
     # Keywords that indicate this is NOT a registered nurse
     exclude_keywords = [
@@ -110,6 +94,8 @@ def is_registered_nurse(title):
         'pa',
         'dentist',
         'pharmacist',
+        'recruiter',
+        'recruiting',
     ]
 
     # If it contains any exclude keywords, it's not an RN
@@ -126,9 +112,14 @@ def is_registered_nurse(title):
                 return False
 
     # If it contains any RN keywords, it is an RN
-    for keyword in rn_keywords:
-        if keyword in title_lower:
-            return True
+    # Any title mentioning "nurse" or a standalone RN counts. The exclude list above
+    # has already removed LPNs, CNAs, NPs, etc. Whole-word match so "rn" doesn't hit "return"
+    if re.search(r'\b(nurses?|rn)\b', title_lower):
+        return True
+
+    # Case manager titles only count when the posting requires RN licensure
+    if 'case manager' in title_lower and description:
+        return bool(re.search(r'\b(rn|registered nurse)\b', str(description).lower()))
 
     return False
 
@@ -167,6 +158,26 @@ def normalize_salary(min_amt, max_amt, interval):
 
     return hourly_min, hourly_max
 
+UPSERT_CHUNK_SIZE = 100
+
+def save_jobs(rows):
+    """Upsert rows in chunks, keyed on url, so reruns refresh existing rows. Returns rows saved."""
+    # Postgres rejects a batch that touches the same conflict key twice, so keep one copy per url
+    unique = list({row['url']: row for row in rows}.values())
+    # Every row in a bulk request needs the same keys, so fill gaps with None
+    columns = sorted({k for row in unique for k in row})
+    unique = [{c: row.get(c) for c in columns} for row in unique]
+
+    saved = 0
+    for i in range(0, len(unique), UPSERT_CHUNK_SIZE):
+        chunk = unique[i:i + UPSERT_CHUNK_SIZE]
+        try:
+            supabase.table('jobs').upsert(chunk, on_conflict='url').execute()
+            saved += len(chunk)
+        except Exception as e:
+            logger.warning(f'  Error saving chunk of {len(chunk)} jobs: {e}')
+    return saved
+
 def scrape_city(city, state):
     logger.info(f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] Scraping {city}, {state}...')
     try:
@@ -193,7 +204,7 @@ def scrape_city(city, state):
         if initial_count == 0:
             logger.info(f'  No jobs from both sources, trying Indeed only...')
             jobs = jobspy.scrape_jobs(
-                site_name=["linkedin", "indeed"],
+                site_name=["indeed"],
                 search_term='nurse OR RN OR "registered nurse"',
                 location=f'{city}, {state}',
                 results_wanted=75,
@@ -228,6 +239,7 @@ def scrape_city(city, state):
                 # Already a list or iterable
                 jobs_list = list(jobs)
 
+            rows_to_save = []
             for job in jobs_list:
                 try:
                     # Safe field access - works with dicts and Polars Rows
@@ -244,7 +256,7 @@ def scrape_city(city, state):
                     title = get_field('title', 'Unknown')
 
                     # Filter to Registered Nurse roles only
-                    if not is_registered_nurse(title):
+                    if not is_registered_nurse(title, get_field('description', '')):
                         continue
 
                     # Safe field access
@@ -294,31 +306,37 @@ def scrape_city(city, state):
                         'created_at': datetime.now().isoformat(),
                         'updated_at': datetime.now().isoformat(),
                     }
-                    job_clean = {k: v for k, v in job_dict.items() if v is not None}
-                    supabase.table('jobs').upsert(job_clean).execute()
+                    rows_to_save.append(job_dict)
                 except Exception as e:
-                    logger.warning(f'  Error inserting job: {e}')
-            logger.info(f'  ✓ Inserted {jobs_count} jobs for {city}, {state}')
+                    logger.warning(f'  Error preparing job: {e}')
+            saved = save_jobs(rows_to_save)
+            logger.info(f'  ✓ Saved {saved} of {len(rows_to_save)} RN jobs for {city}, {state}')
         else:
             logger.info(f'  No jobs found')
     except Exception as e:
         logger.error(f'  Error: {e}')
 
-# Calculate which 5 cities to scrape today based on day of week
-# With 35 cities and 7 days = 5 cities per day
-today = datetime.now().weekday()  # 0=Monday, 6=Sunday
-cities_per_day = 5
-start_idx = (today * cities_per_day) % len(CITIES)
-cities_to_scrape = []
+def main():
+    # Calculate which 5 cities to scrape today based on day of week
+    # With 35 cities and 7 days = 5 cities per day
+    today = datetime.now().weekday()  # 0=Monday, 6=Sunday
+    cities_per_day = 5
+    start_idx = (today * cities_per_day) % len(CITIES)
+    cities_to_scrape = []
 
-for i in range(cities_per_day):
-    idx = (start_idx + i) % len(CITIES)
-    cities_to_scrape.append(CITIES[idx])
+    for i in range(cities_per_day):
+        idx = (start_idx + i) % len(CITIES)
+        cities_to_scrape.append(CITIES[idx])
 
-logger.info(f'Daily Scraper - Day {today} ({cities_per_day} cities)')
-logger.info(f'Cities to scrape: {", ".join([f"{c[0]}, {c[1]}" for c in cities_to_scrape])}')
+    logger.info(f'Daily Scraper - Day {today} ({cities_per_day} cities)')
+    logger.info(f'Cities to scrape: {", ".join([f"{c[0]}, {c[1]}" for c in cities_to_scrape])}')
 
-for city, state in cities_to_scrape:
-    scrape_city(city, state)
+    for city, state in cities_to_scrape:
+        scrape_city(city, state)
 
-logger.info('Done.')
+    logger.info('Done.')
+
+
+# Guarded so importing this module (e.g. from tests) doesn't start a live scrape
+if __name__ == '__main__':
+    main()

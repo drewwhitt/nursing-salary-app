@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 from supabase import create_client
+from db import fetch_all_rows
 
 load_dotenv()
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -136,8 +137,7 @@ st.markdown("")  # Breathing room
 
 # Fetch all jobs from database
 try:
-    response = supabase.table('jobs').select('*').order('posted_at', desc=True).execute()
-    jobs_data = response.data
+    jobs_data = fetch_all_rows(supabase)
 except Exception as e:
     st.error(f"Unable to load job data. Please try again later.")
     st.stop()

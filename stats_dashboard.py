@@ -7,6 +7,7 @@ import plotly.express as px
 import os
 from dotenv import load_dotenv
 from supabase import create_client
+from db import fetch_all_rows
 
 st.set_page_config(
     page_title="Nursing Job Salary Analytics",
@@ -153,8 +154,7 @@ with tab4:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     try:
-        response = supabase.table('jobs').select('employment_type').execute()
-        jobs_data = response.data
+        jobs_data = fetch_all_rows(supabase, 'employment_type')
 
         # Count employment types
         emp_types = {}

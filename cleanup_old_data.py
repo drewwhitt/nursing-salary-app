@@ -6,6 +6,7 @@ Keeps only the real data from the latest scrapes
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from db import fetch_all_rows
 
 load_dotenv()
 
@@ -36,14 +37,14 @@ except Exception as e:
 # Get remaining count by source
 print("\n3. Remaining jobs in database:")
 try:
-    response = supabase.table('jobs').select('source').execute()
-    if response.data:
+    rows = fetch_all_rows(supabase, 'source')
+    if rows:
         sources = {}
-        for job in response.data:
+        for job in rows:
             source = job['source']
             sources[source] = sources.get(source, 0) + 1
 
-        print(f"\n   Total jobs remaining: {len(response.data)}")
+        print(f"\n   Total jobs remaining: {len(rows)}")
         print(f"\n   Breakdown by source:")
         for source, count in sorted(sources.items()):
             print(f"     - {source}: {count} jobs")

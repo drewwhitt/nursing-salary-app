@@ -10,6 +10,7 @@ import os
 import re
 from dotenv import load_dotenv
 from supabase import create_client
+from db import fetch_all_rows
 
 load_dotenv()
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -60,8 +61,7 @@ def should_delete_job(title, min_sal, max_sal):
     return False, None
 
 print("Fetching jobs from database...")
-response = supabase.table('jobs').select('job_id, title, salary_min_hourly, salary_max_hourly').execute()
-jobs = response.data
+jobs = fetch_all_rows(supabase, 'job_id, title, salary_min_hourly, salary_max_hourly')
 
 if not jobs:
     print("No jobs found.")

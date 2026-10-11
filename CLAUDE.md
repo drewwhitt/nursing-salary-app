@@ -69,7 +69,7 @@ Drew wants to build a data-driven resource for registered nurses to understand j
 **Data Quality:**
 - Only RN roles (registered nurses, charge nurses, clinical nurses, nurse coordinators, case managers, etc.)
 - Salary range: $20-$200/hr (outliers removed)
-- Last 7 days of postings only
+- Last 30 days of postings only (`hours_old=720`)
 - 59+ jobs currently in database across multiple cities
 
 ## Cities Covered (35 total)
@@ -86,7 +86,7 @@ Rotating weekly schedule (5 cities per day):
 ## Key Design Decisions
 
 ### RN Filtering
-**Include:** Registered Nurse, RN, Charge Nurse, Clinical Nurse, Nurse Coordinator, Nurse Manager, Case Manager (RN), Nurse Specialist, Nurse Educator, Infection Control Nurse, Occupational Health Nurse
+**Include:** Any title containing "nurse" (whole word) or a standalone "RN" (e.g. Registered Nurse, Charge Nurse, Burn Unit Nurse, Case Manager RN), as long as no exclude term matches
 
 **Exclude:** CNA, Certified Nursing Assistant, Patient Care Technician, PCT, Paramedic, EMT, LPN, LVN, Licensed Practical Nurse, Licensed Vocational Nurse, Phlebotomist, Medical Assistant, MA, Nursing Assistant, Healthcare Assistant, Home Health Aide, HHA
 
