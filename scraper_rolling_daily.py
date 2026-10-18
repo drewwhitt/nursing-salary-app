@@ -22,45 +22,7 @@ STALE_AFTER_DAYS = 14      # postings older than this are archived
 # Annual and monthly postings are converted with this figure.
 HOURS_PER_YEAR = 1872
 
-CITIES = [
-    # Week 1 (5 cities per day = 35 total cities)
-    ("Nashville", "TN"),
-    ("Dallas", "TX"),
-    ("Charlotte", "NC"),
-    ("Denver", "CO"),
-    ("Phoenix", "AZ"),
-    ("Houston", "TX"),
-    ("San Antonio", "TX"),
-    ("Austin", "TX"),
-    ("Atlanta", "GA"),
-    ("Miami", "FL"),
-    ("Tampa", "FL"),
-    ("Orlando", "FL"),
-    ("Boston", "MA"),
-    ("New York", "NY"),
-    ("Philadelphia", "PA"),
-    ("Washington", "DC"),
-    ("Baltimore", "MD"),
-    ("Chicago", "IL"),
-    ("Detroit", "MI"),
-    ("Minneapolis", "MN"),
-    ("Kansas City", "MO"),
-    ("St. Louis", "MO"),
-    ("Nashville", "TN"),  # Will repeat weekly
-    ("Memphis", "TN"),
-    ("New Orleans", "LA"),
-    ("Los Angeles", "CA"),
-    ("San Diego", "CA"),
-    ("San Francisco", "CA"),
-    ("Seattle", "WA"),
-    ("Portland", "OR"),
-    ("Las Vegas", "NV"),
-    ("Salt Lake City", "UT"),
-    ("Indianapolis", "IN"),
-    ("Columbus", "OH"),
-    ("Cleveland", "OH"),
-    ("Pittsburgh", "PA"),
-]
+from cities import CITIES, cities_scraped_on
 
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -301,23 +263,23 @@ def scrape_city(city, state):
         logger.error(f'  Error: {e}')
 
 
-# Calculate which 5 cities to scrape today based on day of week
-# With 35 cities and 7 days = 5 cities per day
+# Today's cities come from the weekly rotation in cities.py (5 cities per day, 35 per week)
 today = datetime.now().weekday()  # 0=Monday, 6=Sunday
-cities_per_day = 5
-start_idx = (today * cities_per_day) % len(CITIES)
-cities_to_scrape = []
+cities_to_scrape = cities_scraped_on(today)
 
-for i in range(cities_per_day):
-    idx = (start_idx + i) % len(CITIES)
-    cities_to_scrape.append(CITIES[idx])
-
-logger.info(f'Daily Scraper - Day {today} ({cities_per_day} cities)')
+logger.info(f'Daily Scraper - Day {today} ({len(cities_to_scrape)} cities)')
 logger.info(f'Cities to scrape: {", ".join([f"{c[0]}, {c[1]}" for c in cities_to_scrape])}')
 
 for city, state in cities_to_scrape:
     scrape_city(city, state)
 
 archive_stale_jobs()
+
+# Re-check postings for the cities scraped two days ago (see check_listings.py)
+try:
+    from check_listings import check_listings_for_day
+    check_listings_for_day()
+except Exception as e:
+    logger.error(f'Listing check failed: {e}')
 
 logger.info('Done.')
