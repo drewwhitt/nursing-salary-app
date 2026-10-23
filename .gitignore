@@ -62,3 +62,4 @@ selenium_driver/
 downloads/
 temp/
 !reference/city_reference.csv
+scraper_log.txt
