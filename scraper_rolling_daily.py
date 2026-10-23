@@ -253,7 +253,8 @@ def scrape_city(city, state):
                         'updated_at': datetime.now().isoformat(),
                     }
                     job_clean = {k: v for k, v in job_dict.items() if v is not None}
-                    supabase.table('jobs').upsert(job_clean).execute()
+                    # A posting already in the table (same url) is refreshed in place, not rejected.
+                    supabase.table('jobs').upsert(job_clean, on_conflict='url').execute()
                 except Exception as e:
                     logger.warning(f'  Error inserting job: {e}')
             logger.info(f'  ✓ Inserted {jobs_count} jobs for {city}, {state}')
