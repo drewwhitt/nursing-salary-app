@@ -134,10 +134,30 @@ st.markdown(f"""
 
 st.markdown("")  # Breathing room
 
-# Fetch all jobs from database
+# Fetch all jobs from database, paging past Supabase's 1,000-row default limit
+PAGE_SIZE = 1000
+
+def fetch_all_jobs():
+    rows = []
+    start = 0
+    while True:
+        response = (
+            supabase.table('jobs')
+            .select('*')
+            .order('posted_at', desc=True)
+            .order('job_id')
+            .range(start, start + PAGE_SIZE - 1)
+            .execute()
+        )
+        batch = response.data or []
+        rows.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            break
+        start += PAGE_SIZE
+    return rows
+
 try:
-    response = supabase.table('jobs').select('*').order('posted_at', desc=True).execute()
-    jobs_data = response.data
+    jobs_data = fetch_all_jobs()
 except Exception as e:
     st.error(f"Unable to load job data. Please try again later.")
     st.stop()

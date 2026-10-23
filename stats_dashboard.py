@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 import streamlit as st
 import pandas as pd
-from calculate_stats import get_city_stats, get_overall_stats
+from calculate_stats import get_city_stats, get_overall_stats, fetch_all_jobs
 import plotly.graph_objects as go
 import plotly.express as px
-import os
-from dotenv import load_dotenv
-from supabase import create_client
 
 st.set_page_config(
     page_title="Nursing Job Salary Analytics",
@@ -146,15 +143,9 @@ with tab3:
 with tab4:
     st.subheader("Job Distribution by Employment Type")
 
-    # Initialize Supabase connection
-    load_dotenv()
-    SUPABASE_URL = os.getenv('SUPABASE_URL')
-    SUPABASE_KEY = os.getenv('SUPABASE_API_KEY')
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
     try:
-        response = supabase.table('jobs').select('employment_type').execute()
-        jobs_data = response.data
+        # fetch_all_jobs pages past Supabase's 1,000-row default limit
+        jobs_data = fetch_all_jobs('employment_type')
 
         # Count employment types
         emp_types = {}

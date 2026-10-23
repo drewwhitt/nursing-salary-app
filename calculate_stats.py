@@ -2,6 +2,9 @@
 """
 Calculate aggregate salary statistics per city
 Returns mean, median, and other stats for nursing jobs
+
+Supabase returns at most 1,000 rows per request by default, so every read
+here pages through the whole table instead of trusting a single .execute().
 """
 import os
 from dotenv import load_dotenv
@@ -14,23 +17,45 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_API_KEY')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+PAGE_SIZE = 1000
+
+
+def fetch_all_jobs(columns):
+    """
+    Return every row of the jobs table for the given select columns.
+    Pages with .range() ordered by job_id so pages never overlap or skip rows.
+    """
+    rows = []
+    start = 0
+    while True:
+        response = (
+            supabase.table('jobs')
+            .select(columns)
+            .order('job_id')
+            .range(start, start + PAGE_SIZE - 1)
+            .execute()
+        )
+        batch = response.data or []
+        rows.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            break
+        start += PAGE_SIZE
+    return rows
+
 
 def get_city_stats():
     """
     Get salary statistics for each city.
     Returns dict with city as key and stats dict as value.
     """
-    # Fetch all jobs with salary and city data
-    response = supabase.table('jobs').select(
-        'city, state, salary_min_hourly, salary_max_hourly, title, company'
-    ).execute()
+    jobs = fetch_all_jobs('city, state, salary_min_hourly, salary_max_hourly, title, company')
 
-    if not response.data:
+    if not jobs:
         return {}
 
     # Group jobs by city
     city_data = {}
-    for job in response.data:
+    for job in jobs:
         city = job['city']
         state = job['state']
         city_key = f"{city}, {state}"
@@ -81,15 +106,13 @@ def get_city_stats():
 
 def get_overall_stats():
     """Get overall statistics across all cities."""
-    response = supabase.table('jobs').select(
-        'salary_min_hourly, salary_max_hourly'
-    ).execute()
+    jobs = fetch_all_jobs('salary_min_hourly, salary_max_hourly')
 
-    if not response.data:
+    if not jobs:
         return None
 
     salaries = []
-    for job in response.data:
+    for job in jobs:
         if job['salary_min_hourly'] and job['salary_max_hourly']:
             avg_salary = (float(job['salary_min_hourly']) + float(job['salary_max_hourly'])) / 2
             salaries.append(avg_salary)
@@ -98,7 +121,7 @@ def get_overall_stats():
         return None
 
     return {
-        'total_jobs': len(response.data),
+        'total_jobs': len(jobs),
         'jobs_with_salary': len(salaries),
         'mean_hourly': round(statistics.mean(salaries), 2),
         'median_hourly': round(statistics.median(salaries), 2),
