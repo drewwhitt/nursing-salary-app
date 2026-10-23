@@ -16,7 +16,7 @@ Drew wants to build a data-driven resource for registered nurses to understand j
 - **Scraping:** JobSpy library (pulls from LinkedIn + Indeed)
 - **Data Processing:** Python with pandas/statistics
 - **Frontend:** Streamlit (two apps: job listings + stats dashboard)
-- **Automation:** Windows Task Scheduler (daily scraping at 3:45 AM Chicago time)
+- **Automation:** Windows Task Scheduler (daily scraping at 8:00 PM Central, PC wakes from sleep and returns to sleep after the run if it was not in use)
 - **Deployment:** GitHub repo for version control, local execution on Windows machine
 
 ## Key Features Implemented
@@ -24,11 +24,14 @@ Drew wants to build a data-driven resource for registered nurses to understand j
 ### 1. Rolling Daily Scraper (`scraper_rolling_daily.py`)
 - Scrapes 5 cities per day (35 total, one complete rotation per week)
 - Sources: LinkedIn + Indeed (pulls from company career pages)
-- Requests 75 results per source per city
-- Automatically filters to RN roles only (no CNAs, paramedics, LPNs, etc.)
+- Requests 100 results per source per city (`RESULTS_PER_SEARCH`)
+- Only pulls postings from the last 14 days (`HOURS_OLD = 336`)
+- Each run archives postings older than 14 days (`STALE_AFTER_DAYS`)
+- Automatically filters to RN roles only (no CNAs, paramedics, LPNs, etc.); whole-word RN match
 - Normalizes all salaries to hourly rates ($20-$200/hr range)
 - Removes salary outliers (typos like $1995/hr are rejected)
 - Prevents duplicates via URL unique constraint in database
+- Known gap: JobSpy calls have no timeout. `SCRAPE_TIMEOUT_SECONDS` in `.env` is not read by the code. A stalled board request can hang a run; the scheduled task's 1-hour limit is the only cap.
 
 ### 2. Job Listings Dashboard (`app_demo.py`)
 - Streamlit app displaying all scraped jobs
@@ -105,10 +108,19 @@ Rotating weekly schedule (5 cities per day):
 
 ## Automation
 
-**Windows Task Scheduler:**
-- **Time:** 3:45 AM Chicago time (daily)
-- **Command:** `run_scraper_daily.bat` which activates venv and runs `scraper_rolling_daily.py`
-- **Next run:** 3:45 AM Chicago time each day
+**Windows Task Scheduler** (task name: `NursingJobScraper`):
+- **Time:** 8:00 PM Central, daily. (Previously 7:00 AM, then 3:45 AM so the room light doesn't wake Drew overnight.)
+- **Command:** `PowerShell.exe -ExecutionPolicy Bypass -File C:\Users\Drewhitt\nursing-salary-app\run_scraper_daily.ps1`
+- **Wake/sleep:** Wake timer is on. The PC wakes from sleep for the run. `run_scraper_daily.ps1` does NOT put the PC back to sleep after the run (`$sleepAfterRun = $false`). The PC stays on once the run finishes. The idle-input check code is still in the script but is inactive while sleep is off. A powered-off PC cannot be woken by the task, so the PC must stay on or asleep for runs to happen.
+- **Safety limits:** 1-hour execution limit, no overlapping runs (`IgnoreNew`), runs on battery, catches up on a missed run (`StartWhenAvailable`).
+- **Logon:** Currently set to run only while logged in (`Interactive`). Logged-off runs need an admin change to `S4U` (see below). Until that is done, a run only happens if the user is logged on or the machine is awake with a session.
+- **Log:** Every run appends to `scraper_log.txt` (start, success/failure, sleep).
+- **Old launcher:** `run_scraper_daily.bat` still exists but the task no longer uses it.
+
+Admin command to allow logged-off runs (run once in an elevated PowerShell):
+```
+$p = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited; Set-ScheduledTask -TaskName NursingJobScraper -Principal $p
+```
 
 ## Important Notes for Future Work
 
@@ -149,6 +161,9 @@ Rotating weekly schedule (5 cities per day):
 ```
 nursing-salary-app/
 ├── scraper_rolling_daily.py       # Main scraper (runs daily)
+├── run_scraper_daily.ps1          # Scheduled-task launcher: logs, runs scraper, sleeps PC if unused
+├── run_scraper_daily.bat          # Old launcher (no longer used by the task)
+├── scraper_log.txt                # Run log written by the launcher
 ├── calculate_stats.py             # Stats calculation module
 ├── stats_dashboard.py             # Analytics dashboard
 ├── app_demo.py                    # Job listings dashboard
@@ -202,9 +217,10 @@ python check_db.py
 ```
 
 ### For Production
-- Runs automatically via Windows Task Scheduler at 3:45 AM daily
+- Runs automatically via Windows Task Scheduler at 8:00 PM daily (see Automation)
 - Scrapes 5 cities per day on rotating schedule
 - Data persists in Supabase, accessible to both dashboards
+- To check the last run: read the tail of `scraper_log.txt`
 
 ## Contact & Questions
 
